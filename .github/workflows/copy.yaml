@@ -1,0 +1,36 @@
+name: Copy Images
+
+on:
+  workflow_dispatch:
+
+env:
+  UPSTREAM: 'ghcr.io/aquasecurity/trivy-test-vm-images'
+  FORK: 'ghcr.io/${{ github.repository_owner }}/trivy-test-vm-images'
+
+jobs:
+  copy_images:
+    runs-on: ubuntu-latest
+    name: Copy images from aquasecurity to ${{ github.repository_owner }}
+    steps:
+      - name: Install crane
+        run: |
+          curl -LO https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz
+          tar xzvf go-containerregistry_Linux_x86_64.tar.gz crane
+          sudo mv crane /usr/local/bin/
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Copy images
+        run: |
+          # Get list of tags
+          TAGS=$(crane ls $UPSTREAM)
+
+          for TAG in $TAGS; do
+            echo "Copying tag $TAG"
+            crane copy $UPSTREAM:$TAG $FORK:$TAG
+          done
